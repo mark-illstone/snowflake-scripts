@@ -1,5 +1,7 @@
-WITH ad_insights AS (SELECT * FROM bi.historical_newspapers.int_facebook_ad_insights)
-   , facebook_structured_ads AS (SELECT * FROM bi.historical_newspapers.int_facebook_structured_ads)
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_facebook_structured_reports AS
+
+WITH ad_insights AS (SELECT * FROM bi.mark_dev.int_plucky_facebook_ad_insights)
+   , facebook_structured_ads AS (SELECT * FROM bi.mark_dev.int_plucky_facebook_structured_ads)
 
 SELECT DISTINCT a.ad_key
      , to_char(b.day,'YYYYMMDD')::int as day

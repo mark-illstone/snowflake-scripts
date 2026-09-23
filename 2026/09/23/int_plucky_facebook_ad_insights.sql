@@ -1,4 +1,6 @@
-WITH ad_insights AS (SELECT * FROM bi.fivetran_facebook_historical_newspapers_shopify_3.ad_insights)
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_facebook_ad_insights AS
+
+WITH ad_insights AS (SELECT * FROM bi.fivetran_facebook_plucky.ad_insights)
 
  SELECT date AS day
       , ad_id

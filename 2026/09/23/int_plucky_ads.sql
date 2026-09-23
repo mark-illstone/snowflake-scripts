@@ -1,8 +1,7 @@
-with google as (select * from bi.historical_newspapers.int_google_structured_ads)
-   , facebook as (select * from bi.historical_newspapers.int_facebook_structured_ads)
-   , marketplace as (select * from bi.historical_newspapers.int_marketplace_structured_ads)
-   , bing as (select * from bi.historical_newspapers.int_structured_bing_ads)
-   , manual_marketing as (select * from bi.historical_newspapers.int_manual_marketing_structured_ads)
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_ads AS
+
+with google as (select * from bi.mark_dev.int_plucky_google_structured_ads)
+   , facebook as (select * from bi.mark_dev.int_plucky_facebook_structured_ads)
 
 , ads_union as (
     
@@ -40,69 +39,7 @@ with google as (select * from bi.historical_newspapers.int_google_structured_ads
         , ad_name
         , keyword_id
         , keyword_name
-    from facebook
-
-    
-    union all
-    
-    
-    select
-        ad_key
-        , partner
-        , channel
-        , account_id
-        , account_name
-        , country
-        , campaign_id
-        , campaign_name
-        , ad_group_id
-        , ad_id
-        , ad_name
-        , keyword_id
-        , keyword_name
-    from marketplace
-
-    
-    union all
-    
-    
-    select
-        ad_key
-        , partner
-        , channel
-        , account_id
-        , account_name
-        , country
-        , campaign_id
-        , campaign_name
-        , ad_group_id
-        , ad_id
-        , ad_name
-        , keyword_id
-        , keyword_name
-    from bing
-
-    
-    union all
-    
-    
-    select
-        ad_key
-        , partner
-        , channel
-        , account_id
-        , account_name
-        , country
-        , campaign_id
-        , campaign_name
-        , ad_group_id
-        , ad_id
-        , ad_name
-        , keyword_id
-        , keyword_name
-    from manual_marketing
-
-    
+    from facebook    
     
 )
 

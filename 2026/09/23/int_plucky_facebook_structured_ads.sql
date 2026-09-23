@@ -1,6 +1,8 @@
-WITH facebook_ads AS (SELECT * FROM bi.historical_newspapers.int_facebook_ads)
-   , facebook_accounts AS (SELECT * FROM bi.historical_newspapers.int_facebook_accounts)
-   , ad_insights AS (SELECt * FROM bi.historical_newspapers.int_facebook_ad_insights)
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_facebook_structured_ads AS
+
+WITH facebook_ads AS (SELECT * FROM bi.mark_dev.int_plucky_facebook_ads)
+   , facebook_accounts AS (SELECT * FROM bi.mark_dev.int_plucky_facebook_accounts)
+   , ad_insights AS (SELECt * FROM bi.mark_dev.int_plucky_facebook_ad_insights)
 
 , temp_facebook_ads as (
     SELECT DISTINCT 

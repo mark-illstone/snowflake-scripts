@@ -1,9 +1,8 @@
-with ads as (select * from bi.historical_newspapers.int_ads)
-   , google_structured_reports AS (SELECT * FROM bi.historical_newspapers.int_google_structured_reports)
-   , facebook_structured_reports AS (SELECT * FROM bi.historical_newspapers.int_facebook_structured_reports)
-   , marketplace_structured_reports AS (SELECT * FROM bi.historical_newspapers.int_marketplace_structured_reports)
-   , bing_structured_reports AS (SELECT * FROM bi.historical_newspapers.int_bing_structured_reports)
-   , manual_marketing_structured_reports AS (SELECT * FROM bi.historical_newspapers.int_manual_marketing_structured_reports)
+CREATE OR REPLACE TABLE bi.mark_dev.fct_plucky_marketing_performance AS
+
+with ads as (select * from bi.mark_dev.int_plucky_ads)
+   , google_structured_reports AS (SELECT * FROM bi.mark_dev.int_plucky_google_structured_reports)
+   , facebook_structured_reports AS (SELECT * FROM bi.mark_dev.int_plucky_facebook_structured_reports)
    , fx AS (SELECT * FROM bi.dbt_production_intermediate.int_fx)
    , country AS (SELECT * FROM bi.google_sheets.ga_4_countries)
 
@@ -30,42 +29,6 @@ with ads as (select * from bi.historical_newspapers.int_ads)
         , commissions
         , 'Retail' as trade_group
     from facebook_structured_reports
-
-    union all
-    
-    select
-        ad_key
-        , day
-        , cost
-        , impressions
-        , clicks
-        , commissions
-        , 'Marketplace' as trade_group
-    from marketplace_structured_reports
- 
-    union all
-    
-    select
-        ad_key
-        , day
-        , cost
-        , impressions
-        , clicks
-        , commissions
-        , 'Retail' as trade_group
-    from bing_structured_reports
-    
-    union all
-
-    select
-        ad_key
-        , day
-        , cost
-        , impressions
-        , clicks
-        , commissions
-        , channel as trade_group
-    from manual_marketing_structured_reports
 )
 
 ,pre_dst as
@@ -93,8 +56,8 @@ select
 
     -- metrics
     -- facebook sends spend already converted to GBP
-    , CASE WHEN (ads.country = 'UK' and ads.partner <> 'ETSY') or ads.partner = 'facebook' THEN COALESCE(performance.cost, 0)
-           WHEN (ads.country = 'USA' OR (ads.country = 'UK' AND ads.partner = 'ETSY')) and ads.partner <> 'facebook' THEN COALESCE(performance.cost, 0)/usd.rate
+    , CASE WHEN ads.country = 'UK' OR ads.partner = 'facebook' THEN COALESCE(performance.cost, 0)
+           WHEN ads.country = 'USA' AND ads.partner <> 'facebook' THEN COALESCE(performance.cost, 0)/usd.rate
            ELSE COALESCE(performance.cost, 0)
            END as cost
     , performance.impressions

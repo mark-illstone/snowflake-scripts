@@ -1,4 +1,6 @@
-with campaigns as (select * from bi.historical_newspapers.int_google_campaigns_daily)
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_google_structured_reports AS
+
+with campaigns as (select * from bi.mark_dev.int_plucky_google_campaigns_daily)
 
 select ad_key
      , to_char(day::date,'YYYYMMDD')::int as day
