@@ -25,13 +25,7 @@ select
     --     end as channel
     , customer_id as account_id
     , customer_name as account_name
-    , CASE WHEN country like '%us%' THEN 'USA'
-           WHEN country like '%uk%' THEN 'UK'
-           WHEN country like '%au%' THEN 'AU'
-           WHEN country like '%ca%' THEN 'CA'
-           WHEN country like '%irl%' THEN 'IRL'
-           ELSE ''
-           END as country
+    , country
     , campaign_id::varchar as campaign_id
     , campaign_name
     , null::varchar as ad_group_id
