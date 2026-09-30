@@ -7,6 +7,17 @@ WITH line_items AS (SELECT * FROM bi.historical_newspapers_shopify.int_product_d
 , upsell_prices as (SELECT * FROM bi.google_sheets.hn_component_prices)
 , finance_units as (SELECT * FROM bi.historical_newspapers_shopify.int_finance_units)
 
+,base_upsell_prices as
+(
+SELECT 
+    foil as base_foil,
+    pictorial as base_pictorial,
+    milestone as base_milestone,
+    deluxe as base_deluxe
+FROM upsell_prices up
+WHERE currency = 'GBP'
+QUALIFY ROW_NUMBER() OVER (ORDER BY effective_date_to DESC) = 1
+)
 
 , temp as
   ( 
@@ -69,7 +80,13 @@ SELECT
     CASE WHEN lower(li.addon_deluxe_sku) IS NOT NULL THEN coalesce(rm1.price_override_deluxe_content_gbp, up.deluxe) END AS deluxe_value,
     CASE WHEN LOWER(o.promo_code) LIKE '%test%' OR LOWER(o.promo_code) LIKE '%sample%' THEN 0 ELSE 
         CASE 
-            WHEN rm1.price_override_gbp IS NOT NULL THEN (rm1.price_override_gbp * fx_rate) + (IFNULL(pictorial_value, 0) + IFNULL(foil_value, 0) + IFNULL(milestone_value, 0) + (IFNULL(coalesce(rm1.price_override_deluxe_content_gbp, up.deluxe), 0) * fx_rate))
+             WHEN rm1.price_override_gbp IS NOT NULL 
+                THEN 
+                    (rm1.price_override_gbp * fx_rate) + 
+                    IFNULL(CASE WHEN li.sku LIKE '%pictorial%' THEN COALESCE(bup.base_pictorial * fx_rate, up.pictorial) END, 0) + 
+                    IFNULL(CASE WHEN li.sku LIKE '%foil%' THEN COALESCE(bup.base_foil * fx_rate, up.foil) END ,0) + 
+                    IFNULL(CASE WHEN li.sku LIKE '%milestone%' THEN COALESCE(bup.base_milestone * fx_rate, up.milestone) END ,0) + 
+                    IFNULL(CASE WHEN li.addon_deluxe_sku IS NOT NULL THEN COALESCE(bup.base_deluxe * fx_rate, up.deluxe) END ,0)
             WHEN o.marketplace_tag in ('HISETSY', 'HISNOTHS') AND o.order_tag != 'UK' AND o.created_at > '2026-06-11 11:00:00.000' THEN fu.local_rrp + 10
             WHEN value_field = 'Sales Price' THEN fu.local_adjusted_price_without_addons
             WHEN value_field = 'RRP' THEN fu.local_rrp
@@ -132,7 +149,9 @@ FROM
             ON  li.local_currency = up.currency
                 AND o.created_at BETWEEN TO_DATE(up.effective_date_from, 'DD/MM/YYYY') AND TO_DATE(up.effective_date_to, 'DD/MM/YYYY')
         LEFT JOIN finance_units fu
-            ON li.line_item_id = fu.line_item_id 
+            ON li.line_item_id = fu.line_item_id
+
+        CROSS JOIN base_upsell_prices bup
         
         )
 

@@ -67,7 +67,8 @@ WITH line_items AS (SELECT * FROM bi.historical_newspapers_shopify.int_temp_line
     --osl.local_shipping_price,
     coalesce(po.local_shipping_price, osl.local_shipping_price) as local_shipping_price,
     osl.local_shipping_currency,
-    TIMESTAMPDIFF('hours', ss.expected_shipping_date, ss.expected_shipping_date_local) AS timezone_adjustment  
+    TIMESTAMPDIFF('hours', ss.expected_shipping_date, ss.expected_shipping_date_local) AS timezone_adjustment,
+    del.working_day_seq - ship.working_day_seq AS tth_working_days
 from orders o
 inner join fullfilment os on os.order_id = o.order_id
 inner join shipping osl on osl.order_id = o.order_id
@@ -77,6 +78,15 @@ left join eagle_shipments ss on so.id = ss.order_id
 left join eagle_printhouses ep on ep.id = ss.printhouse_id
 
 left join temp_price_override po on o.order_id = po.order_id
+
+LEFT JOIN shipping_calendar ship
+    ON LOWER(ship.market_code) = CASE WHEN LOWER(o.shipping_addresss_country_code) NOT IN (SELECT LOWER(market_code) FROM tth_markets) THEN 'default' ELSE LOWER(COALESCE(o.shipping_addresss_country_code, 'default')) END
+    AND LOWER(ship.shipping_service) = CASE WHEN LOWER(osl.shipment_type) = 'express' THEN 'tracked' WHEN LOWER(osl.shipment_type) = 'urgent' THEN 'next-day' ELSE 'standard' END
+    AND ship.cal_date = expected_shipping_date_solidus::DATE
+  LEFT JOIN shipping_calendar del
+    ON  LOWER(del.market_code)  = CASE WHEN LOWER(o.shipping_addresss_country_code) NOT IN (SELECT LOWER(market_code) FROM tth_markets) THEN 'default' ELSE LOWER(COALESCE(o.shipping_addresss_country_code, 'default')) END
+    AND LOWER(del.shipping_service) = CASE WHEN LOWER(osl.shipment_type) = 'express' THEN 'tracked' WHEN LOWER(osl.shipment_type) = 'urgent' THEN 'next-day' ELSE 'standard' END
+    AND del.cal_date = a.expected_delivery_date_solidus::DATE
 
     )
 
@@ -100,7 +110,8 @@ left join temp_price_override po on o.order_id = po.order_id
     shipment_type_2,
     local_shipping_price,
     local_shipping_price / COUNT(*) OVER (PARTITION BY order_id) AS split_shipment_price,
-    timezone_adjustment
+    timezone_adjustment,
+    tth_working_days
     FROM base
 )
 
@@ -158,7 +169,8 @@ left join temp_price_override po on o.order_id = po.order_id
     DATEADD(hour, scs.timezone_adjustment, scs.updated_at)                      AS shipped_at_shopify_local,
     DATEADD(hour, scs.timezone_adjustment, scs.shipped_at_solidus)              AS shipped_at_solidus_local,
     DATEADD(hour, scs.timezone_adjustment, scs.expected_shipping_date_solidus)  AS expected_shipping_date_solidus_local,
-    IFNULL(timezone_adjustment, 0) AS timezone_adjustment
+    IFNULL(timezone_adjustment, 0) AS timezone_adjustment,
+    tth_working_days
             
     FROM shipment_cost_split scs
     LEFT JOIN shipment_with_alcohol swa 
