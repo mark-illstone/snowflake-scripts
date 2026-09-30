@@ -11,6 +11,7 @@ WITH shipments AS (SELECT * FROM bi.dbt_production_intermediate.int_shipments)
    , psp_speed_mapping AS (SELECT * FROM bi.google_sheets.psp_speed_mapping)
    , printhouses AS (SELECT * FROM bi.dbt_production_intermediate.int_printhouses)
    , shipping_calendar AS (SELECT * FROM bi.mark_dev.int_shipping_calendar)
+   , tth_markets AS (SELECT DISTINCT market_code FROM shipping_calendar)
 
 SELECT a.order_id AS order_id
      , a.printhouse_id
@@ -64,10 +65,10 @@ SELECT a.order_id AS order_id
     AND LOWER(brand) = 'wonderbly'
 
   LEFT JOIN shipping_calendar ship
-    ON LOWER(ship.market_code)      = LOWER(d.iso)
-    AND LOWER(ship.shipping_service) = LOWER(f.shipping_type)
-    AND ship.cal_date         = a.expected_shipping_date::DATE
+    ON LOWER(ship.market_code) = CASE WHEN LOWER(d.iso) NOT IN (SELECT LOWER(market_code) FROM tth_markets) THEN 'default' ELSE LOWER(COALESCE(d.iso, 'default')) END
+    AND LOWER(ship.shipping_service) = LOWER(COALESCE(f.shipping_type, 'standard'))
+    AND ship.cal_date = a.expected_shipping_date::DATE
   LEFT JOIN shipping_calendar del
-    ON  LOWER(del.market_code)       = LOWER(d.iso)
-    AND LOWER(del.shipping_service)  = LOWER(f.shipping_type)
-    AND del.cal_date          = a.expected_delivery_date::DATE
+    ON  LOWER(del.market_code)  = CASE WHEN LOWER(d.iso) NOT IN (SELECT LOWER(market_code) FROM tth_markets) THEN 'default' ELSE LOWER(COALESCE(d.iso, 'default')) END
+    AND LOWER(del.shipping_service) = LOWER(COALESCE(f.shipping_type, 'standard'))
+    AND del.cal_date = a.expected_delivery_date::DATE
