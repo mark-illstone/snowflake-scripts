@@ -1,16 +1,16 @@
-CREATE OR REPLACE TABLE bi.mark_dev.int_hn_shipments_shopify AS
+CREATE OR REPLACE TABLE bi.mark_dev.int_plucky_shipments_shopify AS
 
-WITH line_items AS (SELECT * FROM bi.historical_newspapers_shopify.int_temp_line_items)
-    ,orders AS (SELECT * FROM bi.mark_dev.int_hn_temp_orders_shopify)
-    ,fullfilment AS (SELECT * FROM bi.historical_newspapers_shopify.int_fullfilment_order_deduplication)
-    ,shipping AS (SELECT * FROM bi.historical_newspapers_shopify.int_shipping_deduplication)
+WITH line_items AS (SELECT * FROM bi.plucky_shopify.int_temp_line_items)
+    ,orders AS (SELECT * FROM bi.plucky_shopify.int_temp_orders)
+    ,fullfilment AS (SELECT * FROM bi.plucky_shopify.int_fullfilment_order_deduplication)
+    ,shipping AS (SELECT * FROM bi.plucky_shopify.int_shipping_deduplication)
     ,eagle_orders AS (SELECT * FROM bi.dbt_production_intermediate.int_orders_deduplication)
     ,eagle_shipments AS (SELECT * FROM bi.dbt_production_intermediate.int_shipments)
     ,eagle_printhouses AS (SELECT * FROM bi.dbt_production_intermediate.int_printhouses)
-    ,price_override AS (SELECT * FROM bi.historical_newspapers_shopify.int_price_override)
+    ,price_override AS (SELECT * FROM bi.plucky_shopify.int_price_override)
+
     ,shipping_calendar AS (SELECT * FROM bi.mark_dev.int_shipping_calendar)
-    
-   , tth_markets AS (SELECT DISTINCT market_code FROM shipping_calendar)
+    ,tth_markets AS (SELECT DISTINCT market_code FROM shipping_calendar)
 
     ,temp_price_override AS
     (
@@ -68,14 +68,6 @@ WITH line_items AS (SELECT * FROM bi.historical_newspapers_shopify.int_temp_line
     coalesce(po.local_shipping_price, osl.local_shipping_price) as local_shipping_price,
     osl.local_shipping_currency,
     TIMESTAMPDIFF('hours', ss.expected_shipping_date, ss.expected_shipping_date_local) AS timezone_adjustment,
-
-    COALESCE(NULLIF(SPLIT_PART(estimated_delivery, ' and ', 2), ''),
-                 estimated_delivery) AS last_date_part,
-        TRY_TO_DATE(
-            TRIM(SPLIT_PART(last_date_part, ',', 2)) || ' ' || YEAR(os.updated_at),  -- '14 October 2025'
-            'DD MMMM YYYY'
-        ) AS est_date_same_year,
-
     del.working_day_seq - ship.working_day_seq AS tth_working_days
 from orders o
 inner join fullfilment os on os.order_id = o.order_id
@@ -94,7 +86,7 @@ LEFT JOIN shipping_calendar ship
   LEFT JOIN shipping_calendar del
     ON  LOWER(del.market_code)  = CASE WHEN LOWER(o.shipping_address_country_code) NOT IN (SELECT LOWER(market_code) FROM tth_markets) THEN 'default' ELSE LOWER(COALESCE(o.shipping_address_country_code, 'default')) END
     AND LOWER(del.shipping_service) = CASE WHEN LOWER(osl.shipment_type) = 'express' THEN 'tracked' WHEN LOWER(osl.shipment_type) = 'urgent' THEN 'next-day' ELSE 'standard' END
-    AND del.cal_date = coalesce(expected_delivery_date_solidus::DATE, est_date_same_year::DATE)
+    AND del.cal_date = expected_delivery_date_solidus::DATE
 
     )
 
@@ -178,8 +170,7 @@ LEFT JOIN shipping_calendar ship
     DATEADD(hour, scs.timezone_adjustment, scs.shipped_at_solidus)              AS shipped_at_solidus_local,
     DATEADD(hour, scs.timezone_adjustment, scs.expected_shipping_date_solidus)  AS expected_shipping_date_solidus_local,
     IFNULL(timezone_adjustment, 0) AS timezone_adjustment,
-    tth_working_days
-            
+    tth_working_days            
     FROM shipment_cost_split scs
     LEFT JOIN shipment_with_alcohol swa 
         ON scs.order_id = swa.order_id 
