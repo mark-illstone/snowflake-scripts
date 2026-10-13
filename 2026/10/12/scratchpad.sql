@@ -1,0 +1,3 @@
+SELECT distinct royaltor
+FROM bi.historical_newspapers_shopify.int_product_data
+order by 1
